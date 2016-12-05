@@ -1,17 +1,28 @@
 import {Provider} from 'react-redux'
-import {createstore} from 'redux'
-import React, {Component} from 'react'
-import {Router, Route, IndexRoute, browserHistory} from 'react-router'
+import React, {Component,PropTypes} from 'react'
+import {Router, Route, IndexRoute,Redirect ,browserHistory} from 'react-router'
 import {render} from 'react-dom'
 import Nav from  './navBar/nav.jsx'
+import Home from './component/home.jsx'
+import Myform from './component/justForVIP.jsx'
+import cExchange from './component/cExchange.jsx'
+import {store} from "./store/store"
 
 
 render(
-    <Router history={browserHistory}>
-        <Route path="/">
-            <IndexRoute component={Nav}/>
-        </Route>
-    </Router>,
-
+    <Provider store={store}>
+        <Router history={browserHistory}>
+            <Route path="/" component={Nav}>
+                <IndexRoute component={Home}/>
+                <Route path="bImages"/>
+                <Route path="lNews"/>
+                <Route path="aSearches"/>
+                <Route path="cExchange" component={cExchange}/>
+                <Route path="vip" component={Myform}/>
+                <Redirect from='*' to='/'/>
+            </Route>
+        </Router>
+    </Provider>,
     document.getElementById('app')
-);
+)
+;
