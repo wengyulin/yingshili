@@ -14,7 +14,7 @@ var initial = {
 };
 
 
-function info(state = Object.assign({},initial.info), action) {
+function info(state = Object.assign({}, initial.info), action) {
     let newState = {};
     switch (action.type) {
         case "CHANGE_NAME":
@@ -23,36 +23,29 @@ function info(state = Object.assign({},initial.info), action) {
         default:
             return state;
     }
-
 }
 
-function wealth(state =  Object.assign({},initial.wealth), action) {
+function wealth(state = Object.assign({}, initial.wealth), action) {
     let newState = {};
     switch (action.type) {
-        case "ADD_GIFTS":
+        case ADD_GIFTS:
             newState.coins = state.coins - 1300;
+            newState.gifts = state.gifts + 1;
             return newState;
 
-        case "SUB_GIFTS":
+        case SUB_GIFTS:
             newState.coins = state.coins + 1300;
+            newState.gifts = state.gifts -1;
             return newState;
 
-        case "ADD_TICKETS":
+        case ADD_TICKETS:
             newState.tickets = state.tickets + 1;
             return newState;
         default:
             return state;
     }
-
-
 }
 export const reducers = {
     info,
     wealth
 };
-
-
-
-
-
-

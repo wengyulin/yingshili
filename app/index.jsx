@@ -5,7 +5,7 @@ import {render} from 'react-dom'
 import Nav from  './navBar/nav.jsx'
 import Home from './component/home.jsx'
 import Myform from './component/justForVIP.jsx'
-import cExchange from './component/cExchange.jsx'
+import Exchange from './component/cExchange.jsx'
 import {store} from "./store/store"
 
 
@@ -17,7 +17,7 @@ render(
                 <Route path="bImages"/>
                 <Route path="lNews"/>
                 <Route path="aSearches"/>
-                <Route path="cExchange" component={cExchange}/>
+                <Route path="cExchange" component={Exchange}/>
                 <Route path="vip" component={Myform}/>
                 <Redirect from='*' to='/'/>
             </Route>

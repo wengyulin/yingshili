@@ -5,26 +5,26 @@ export const CHANGE_NAME = "CHANGE_NAME";
 
 export function addGift() {
     return {
-        type: 'ADD_GIFTS'
+        type:ADD_GIFTS
     }
 }
 
 export function addticket() {
     return {
-        type: 'ADD_TICKETS'
+        type: ADD_TICKETS
     }
 }
 
 export function subGift() {
     return {
-        type: 'SUB_GIFT'
+        type:SUB_GIFTS
     }
 }
 
 
 export function changeName(newName) {
     return {
-        type: 'CHANGE_NAME',
+        type:CHANGE_NAME,
         newName
     }
 }

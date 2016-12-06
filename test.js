@@ -31,6 +31,7 @@ function test3(){
 
     return {funca:objtes2.funca}
 }
-
+var obj4 = {...test3}
+obj4.funca();
 var obj3 = test3();
 obj3.funca()
