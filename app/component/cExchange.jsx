@@ -8,6 +8,7 @@ class Exchange extends Component {
     constructor(props) {
         super(props);
     }
+
     render() {
         return (
             <ExchangeTip  {...this.props}/>

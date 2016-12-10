@@ -1,4 +1,5 @@
 import React,{Component} from 'react'
+import ReactCSSTransitionGroup from 'react-addons-css-transition-group'
 import NavItem from './navItems.jsx'
 import { Menu, Icon } from 'antd';
 import {Link} from 'react-router'
@@ -39,7 +40,16 @@ export default class Nav extends Component {
                     <span className="logo">用专业的心 , 做专业的事 !</span>
                 </div>
                 <div className={"main-content"}>
-                    {this.props.children}
+                    <ReactCSSTransitionGroup
+                        component="div"
+                        transitionName="example"
+                        transitionEnterTimeout={500}
+                        transitionLeaveTimeout={500}
+                    >
+                        {React.cloneElement(this.props.children, {
+                            key: this.props.location.pathname
+                        })}
+                    </ReactCSSTransitionGroup>
                 </div>
                 <footer className="footer">
                     <div className="centerBlock">

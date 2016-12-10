@@ -30,15 +30,25 @@ const common_config = {
         path: PATHS.build,
         filename: "[name].js"
     },
-    plugins: [
-        new HtmlWebpackPlugin({
+    plugins: process.env.NODE_ENV === 'production' ? [
+       /* new webpack.optimize.DedupePlugin(),
+        new webpack.optimize.OccurrenceOrderPlugin(),
+        new webpack.optimize.UglifyJsPlugin(),*/
+            new HtmlWebpackPlugin({
             template: require('html-webpack-template'), //生成模版html
             title: "鹰视利|我们的眼护专家",
             appMountId: "app",
             inject: false,
             favicon: PATHS.favicon
         })
-    ],
+    ]:[ new webpack.optimize.UglifyJsPlugin(),
+        new HtmlWebpackPlugin({
+            template: require('html-webpack-template'), //生成模版html
+            title: "鹰视利|我们的眼护专家",
+            appMountId: "app",
+            inject: false,
+            favicon: PATHS.favicon
+        })],
 
     module: {
         loaders: [{

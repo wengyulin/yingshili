@@ -19,3 +19,4 @@ export default class ExchangeTip extends Component {
             </Form>);
     }
 }
+
