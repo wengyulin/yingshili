@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dll": "webpack --config webpack.config.dll.js",
+    "dll": "webpack --config webpack.config.dll.js && node app",
     "dev": "webpack-dev-server  --config webpack.config.dll.js"
   },
   "author": "",
