@@ -10,9 +10,7 @@ var initial = {
         tickets: 0,
         gifts: 0
     }
-
 };
-
 
 function info(state = Object.assign({}, initial.info), action) {
     let newState = {};
@@ -35,7 +33,7 @@ function wealth(state = Object.assign({}, initial.wealth), action) {
 
         case SUB_GIFTS:
             newState.coins = state.coins + 1300;
-            newState.gifts = state.gifts -1;
+            newState.gifts = state.gifts - 1;
             return newState;
 
         case ADD_TICKETS:

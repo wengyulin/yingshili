@@ -6,7 +6,7 @@ const webpack = require('webpack');
 
 //设置加载路径
 const PATHS = {
-    test: path.resolve(__dirname, "text1.jsx"),
+    test: path.resolve(__dirname, "test1.jsx"),
     app: path.resolve(__dirname, "app", "index.jsx"),
     build: path.resolve(__dirname, "build"),
     favicon: path.resolve(__dirname, "app/src/favicon.png"),
@@ -23,7 +23,7 @@ const parts = require('./libs/parts');
 const common_config = {
     entry: {
         polyfill: "babel-polyfill",
-        app: PATHS.app,
+        app: PATHS.test,
         style: PATHS.style
     },
     output: {
