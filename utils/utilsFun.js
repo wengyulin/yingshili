@@ -29,6 +29,6 @@ function messageHandler (msg){
 
         say(msg.msg);
     }
-};
+}
 
 exports.messageHandler = messageHandler;
