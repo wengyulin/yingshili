@@ -24,27 +24,8 @@ const route = {};
 const username = "1";
 const password = "1";
 let gift = "";
-function app() {
-    init();
-    function handle(req, res) {
-        let method = req.method;
-        let len = route[method] && route[method].length > 0 ? route[method].length : 0;
-        if (method == "POST") {
-            for (let i = 0; i < len; i++) {
-                if (route[method][i].path == req.url) {
-                    route[method][i].fn[0](req, res);
-                }
-            }
-        } else if (method == "GET") {
-            route[method][0].fn[0](req, res);
-        }
 
-    }
 
-    return http.Server((req, res)=> {
-     handle(req, res);
-     });
-}
 function init() {
     //动态添加路由
     methods.forEach((method)=> {
@@ -56,6 +37,11 @@ function init() {
             }
         };
     });
+}
+
+function app() {
+    init();
+    return new http.Server();
 }
 
 const server = app();
@@ -96,16 +82,7 @@ app.POST("/vipActivities", (req, res)=> {
     });
 });
 app.GET("/", (req, res)=> {
-
-    /**
-     * 源API：response.setTimeout(msecs, callback)
-     * 说明：设置socket超时时间，如果提供了callback，响应对象会监听timeout事件。
-     * @param {Number} msesc 毫秒
-     * @param {Function} callback 回调函数
-     */
-   /* res.setTimeout(6000, callback);*/
-
-
+    
     let statInfo = fs.statSync(PATHS.build);
     let regexpJS = /\.(js|jsx)$/;
     let regexpCSS = /\.(css)$/;
@@ -153,6 +130,38 @@ app.GET("/", (req, res)=> {
         res.writeHead(404, {'Content-Type': 'text/plain'});
         res.end("not found");
     }
+});
+
+
+/**
+ * 说明：'request'的回调函数
+ *
+ */
+const handle = (req, res) => {
+    let method = req.method;
+    let len = route[method] && route[method].length > 0 ? route[method].length : 0;
+    if (method == "POST") {
+        for (let i = 0; i < len; i++) {
+            if (route[method][i].path == req.url) {
+                route[method][i].fn[0](req, res);
+            }
+        }
+    } else if (method == "GET") {
+        route[method][0].fn[0](req, res);
+    }
+
+};
+
+
+/**
+ * 说明：创建服务器的第二种写法
+ * 有关server对象的事件监听
+ * @param {Object} req 是http.IncomingMessag的一个实例，在keep-alive连接中支持多个请求
+ * @param {Object} res 是http.ServerResponse的一个实例
+ */
+
+server.on('request', (req, res)=> {
+    handle(req, res);
 });
 
 
@@ -260,7 +269,28 @@ server.maxHeadersCount = 1000;
  * @param {Object} head 是一个Buffer实例，升级后流的第一个包，该参数可能为空。
  */
 server.on('upgrade', (req, socket, head)=> {
+    socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+        'Upgrade: WebSocket\r\n' +
+        'Connection: Upgrade\r\n' +
+        '\r\n');
 
+    socket.on("data", (d)=> {
+        console.log(d.toString())
+        socket.write("发送服务器的消息");
+
+    });
+    socket.on("end", ()=> {
+        socket.write("发送服务器的消息");
+        socket.end();
+        if (!socket.destroyed) {
+            console.log(" socket.end 会销毁socket,不信你可以执行end，看会不会进入这个方法")
+            if (socket.destroy) {
+                socket.destroy();
+                console.log(!socket.destroyed)
+            }
+
+        }
+    });
 });
 
 
@@ -301,5 +331,5 @@ server.listen(3000, "127.0.0.1", ()=> {
     process.send({
         cmd: ONLINE,
         msg: `[child] =>${process.pid} 上线了....`
-    })
+    });
 });
