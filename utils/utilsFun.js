@@ -10,8 +10,9 @@ const track4Reqs = ()=> {
         console.log('numReqs =', numReqs);
     });
 };
-exports.track4Reqs = track4Reqs;
 
+
+exports.track4Reqs = track4Reqs;
 
 const say = (message) => {
     console.log("[SERVER] " + message);
@@ -19,15 +20,29 @@ const say = (message) => {
 
 exports.say = say;
 
-function messageHandler (msg){
-    if (msg.cmd && msg.cmd == 'notifyRequest') {
-        say(`The worker #${this.id} is working.It's pid is #${this.process.pid}`);
 
-    } else if (msg.cmd && msg.cmd == 'online') {
-        say(msg.msg);
-    }else if(msg.cmd && msg.cmd == 'offline'){
-
-        say(msg.msg);
+/*
+ *  说明：这个函数需要绑定子进程，所以不用箭头函数
+ *
+ * */
+function messageHandler(msg) {
+    if (msg.cmd) {
+        switch (msg.cmd) {
+            case `notifyRequest`:
+                say(`The worker #${this.id} is working.It's pid is #${this.process.pid}`);
+                break;
+            case `online`:
+            case `offline`:
+            case `query`:
+            case `mysqlonline`:
+            case `EnqueueMysql`:
+            case `errormysql`:
+                say(msg.msg);
+                break;
+            default:
+                say("未知错误");
+                break;
+        }
     }
 }
 

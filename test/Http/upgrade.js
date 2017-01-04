@@ -9,7 +9,7 @@ var srv = http.createServer((req, res) => {
     res.end('okay');
 });
 srv.on('upgrade', (req, socket, head) => {
-
+    console.log(req.httpVersion)
     socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
         'Upgrade: WebSocket\r\n' +
         'Connection: Upgrade\r\n' +
@@ -62,3 +62,5 @@ srv.listen(1337, '127.0.0.1', () => {
     });
     req.end()
 });
+
+

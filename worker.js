@@ -4,13 +4,27 @@ const fs = require("fs");
 const qs = require('querystring');
 const url = require('url');
 const net = require('net');
+const mysql = require('mysql');
 
+//信号量
 const {SHOTDOWN,
     ONLINE,
     OFFLINE,
-    ALREADYLINE
+    ALREADYLINE,
+    Query,
+    ErrorMysql,
+    MysqlOnline,
+    EnqueueMysql
     } = require(path.resolve(__dirname, "utils/SIGN.js"));
 
+//数据库配置项
+const DBConfig = require(path.resolve(__dirname, "utils/DBconfig.js"));
+
+
+//最后可能需要存到redis里
+const route = {};
+
+//路径
 const PATHS = {
     app: path.resolve(__dirname, "app", "index.jsx"),
     build: path.resolve(__dirname, "build", "index.html"),
@@ -18,14 +32,39 @@ const PATHS = {
 };
 
 
+/*
+ * 说明，为了支持并发，节省支援，采用连接池
+ *
+ * */
+const pool = mysql.createPool(DBConfig);
+
+
+pool.on('enqueue', function () {
+    process.send({
+        cmd: EnqueueMysql,
+        msg: `Waiting for available connection slot.`
+    });
+});
+
+pool.on('connection', (connection) => {
+    process.send({
+        cmd: MysqlOnline,
+        msg: `connected as id:  ${connection.threadId}.`
+    });
+
+});
+
+/**
+ * 说明：所有http请求方法
+ *
+ * */
 const methods = http.METHODS;
 
-const route = {};
-const username = "1";
-const password = "1";
-let gift = "";
-
-
+/**
+ * 说明：模仿express动态生成挂着方法
+ *
+ *
+ * */
 function init() {
     //动态添加路由
     methods.forEach((method)=> {
@@ -46,6 +85,11 @@ function app() {
 
 const server = app();
 
+/**
+ * 说明：挂在请求方法 与 回调函数
+ *
+ *
+ * */
 app.POST("/dolegift", (req, res)=> {
     let postData = "";
     req.on("data", data=> {
@@ -70,19 +114,32 @@ app.POST("/vipActivities", (req, res)=> {
     });
 
     req.on("end", ()=> {
-        let verification = false; //验证
-        postData = qs.parse(postData);
-        let reback = {verifi: verification};
-        if (postData.ID == username && postData.password == password) {
-            reback.verifi = true;
-        }
-        res.writeHead(200, {'Content-Type': 'application/json'});
-        res.end(JSON.stringify(reback));
 
+        let verification = false; //验证
+        let reback = {verifi: verification};
+
+
+        postData = qs.parse(postData);
+
+        pool.getConnection((err, connection)=> {
+            //查询
+            connection.query('select * from `users`', function (err, rows, fields) {
+                if (err) throw err;
+
+                if (postData.ID == rows[0][`userID`] && postData.password == rows[0][`password`]) {
+                    reback.verifi = true;
+                }
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.end(JSON.stringify(reback));
+                process.send({
+                    cmd: Query,
+                    msg: `[child] 查询结果为=>${JSON.stringify(rows)}.`
+                });
+            });
+        });
     });
 });
 app.GET("/", (req, res)=> {
-    
     let statInfo = fs.statSync(PATHS.build);
     let regexpJS = /\.(js|jsx)$/;
     let regexpCSS = /\.(css)$/;
@@ -123,7 +180,12 @@ app.GET("/", (req, res)=> {
         res.setHeader('Content-Type', 'text/html');
         res.setHeader('Server', 'huenchao');
         res.setHeader('X-Power-By', 'nodejs');
-        res.writeHead(200, {});
+        res.writeHead(200, {
+            'Trailer': 'Content-MD5'
+        });
+
+        res.addTrailers({'Content-MD5': '7895bf4b8828b55ceaf47747b4bca667'});
+
         readStrem = fs.createReadStream(PATHS.build);
         readStrem.pipe(res);
     } else {
@@ -131,7 +193,6 @@ app.GET("/", (req, res)=> {
         res.end("not found");
     }
 });
-
 
 /**
  * 说明：'request'的回调函数
@@ -152,7 +213,6 @@ const handle = (req, res) => {
 
 };
 
-
 /**
  * 说明：创建服务器的第二种写法
  * 有关server对象的事件监听
@@ -163,8 +223,6 @@ const handle = (req, res) => {
 server.on('request', (req, res)=> {
     handle(req, res);
 });
-
-
 /**
  * 说明：每当收到Expect: 100-continue的http请求时触发。 如果未监听该事件，服务器会酌情自动发送100 Continue响应。
  *
@@ -183,7 +241,6 @@ server.on('checkContinue', (req, res) => {
         res.writeHead(400, {'Content-Type': 'text/plain;charset="UTF-8"'});
         res.end('check your proxy, Bad Request');
     }
-
 });
 
 /**
@@ -226,11 +283,19 @@ server.on('connect', (req, cltSocket, head)=> {
 server.on('clientError', (err, socket) => {
     socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 });
-
-
 //主进程发送消息过来了。
 process.on('message', (msg) => {
     if (msg === SHOTDOWN) {
+        pool.end((err)=> {
+            // all connections in the pool have ended
+            if (err) {
+                process.send({
+                    cmd: ErrorMysql,
+                    msg: `error connecting:  ${err.stack}.`
+                });
+            }
+        });
+
         //关闭服务器
         server.close(()=> {
             process.send({
@@ -241,8 +306,6 @@ process.on('message', (msg) => {
         })
     }
 });
-
-
 /**
  * 源API: Event: 'close'
  * 说明：关闭服务器时触发
@@ -269,13 +332,16 @@ server.maxHeadersCount = 1000;
  * @param {Object} head 是一个Buffer实例，升级后流的第一个包，该参数可能为空。
  */
 server.on('upgrade', (req, socket, head)=> {
-    socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
-        'Upgrade: WebSocket\r\n' +
-        'Connection: Upgrade\r\n' +
-        '\r\n');
 
-    socket.on("data", (d)=> {
-        console.log(d.toString())
+    if (req.httpVersion == "1.0") {
+        socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+            'Upgrade: WebSocket\r\n' +
+            'Connection: Upgrade\r\n' +
+            '\r\n');
+    } else {
+        socket.end();
+    }
+    socket.on("data", (chunk)=> {
         socket.write("发送服务器的消息");
 
     });
@@ -283,7 +349,7 @@ server.on('upgrade', (req, socket, head)=> {
         socket.write("发送服务器的消息");
         socket.end();
         if (!socket.destroyed) {
-            console.log(" socket.end 会销毁socket,不信你可以执行end，看会不会进入这个方法")
+            console.log(" socket.end 会销毁socket,不信你可以执行end，看会不会进入这个方法");
             if (socket.destroy) {
                 socket.destroy();
                 console.log(!socket.destroyed)
@@ -292,8 +358,6 @@ server.on('upgrade', (req, socket, head)=> {
         }
     });
 });
-
-
 /**
  * 源API：server.setTimeout(msecs, callback)
  * 说明：为套接字设定超时值。如果一个超时发生，那么Server对象上会分发一个'timeout'事件，同时将套接字作为参数传递。
@@ -310,8 +374,6 @@ server.setTimeout(60000, (socket)=> {
     !socket.destroyed && socket.destroy && socket.destroy();
 
 });
-
-
 /**
  * 说明：一个套接字被判断为超时之前的闲置毫秒数。 默认 120000 (2 分钟) ,超时2分钟的话 sockets 就会自动销毁
  * 注意1： socket timeout 这个逻辑是在已经建立了链接的基础上设置的。所以它只对新进来的链接有效，已经存在的无效。.

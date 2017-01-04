@@ -1,7 +1,6 @@
 const cluster = require('cluster');
 const path = require('path');
 const {say,messageHandler} = require(path.resolve(__dirname, "utils/utilsFun.js"));
-const {SHOTDOWN} = require(path.resolve(__dirname, "utils/SIGN.js"));
 const numCPUs = require('os').cpus().length;
 
 
@@ -23,20 +22,6 @@ cluster.setupMaster({
 // Start workers and listen for messages containing notifyRequest
 for (let i = 0; i < numCPUs; i++) {
     let worker = cluster.fork();
-/*    let timeout;
-
-    worker.on('listening', (address) => {
-        worker.send(SHOTDOWN);
-        worker.disconnect();
-        timeout = setTimeout(() => {
-            worker.kill();
-        }, 2000);
-    });
-
-    worker.on('disconnect', () => {
-        clearTimeout(timeout);
-    });*/
-
 }
 
 

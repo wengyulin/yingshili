@@ -41,6 +41,7 @@
   "dependencies": {
     "antd": "^2.5.0",
     "bson-ext": "^1.0.0",
-    "mongodb": "^2.2.12"
+    "mongodb": "^2.2.12",
+    "mysql": "^2.12.0"
   }
 }
