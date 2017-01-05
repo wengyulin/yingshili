@@ -139,7 +139,7 @@ function Router(app) {
      * 说明: 华为listos http接口部署
      *
      * */
-    app.POST("/发送TCP的代码", (req, res)=> {
+    app.POST("/todoSwitch", (req, res)=> {
 
         let chunk = "",
             reback = "";
@@ -150,44 +150,50 @@ function Router(app) {
 
         req.on("end", ()=> {
             try {
-                qs.parse(chunk);
-                reback = {verifi: true};
-                res.writeHead(200, {'Content-Type': 'application/json'});
+                let postData = qs.parse(chunk),
+                    pool = app.pool;
+
+                pool.getConnection((err, connection)=> {
+                    //查询
+                    connection.query(`UPDATE devices SET status = ${postData.status} WHERE deviceID = ${postData.deviceID}`, function (err, rows, fields) {
+                        if (err) throw err;
+                        const client = net.connect({port: 6666, host: "10.1.17.9"}, () => {
+                            // 'connect' listener
+                            process.send({
+                                cmd: TCPconnected,
+                                msg: 'connected to server!'
+                            });
+
+                            client.write(`${chunk}\r\n`);
+                        });
+
+                        /**
+                         * 说明： 0 成功 1失败
+                         *
+                         * */
+                        client.on('data', (data) => {
+                            process.send({
+                                cmd: Query,
+                                msg: data.toString()
+                            });
+                            res.end(JSON.stringify(
+                                data.toString()
+                            ));
+                        });
+
+                        client.on('end', () => {
+                            process.send({
+                                cmd: TCPdisconnect,
+                                msg: `disconnected from server.`
+                            });
+                        });
+                        connection.release();
+                    });
+                });
             } catch (e) {
-                reback = {verifi: false};
+                reback = {status: 0, msg: "失败"};
+                res.end(JSON.stringify(reback));
             }
-        });
-
-
-        const client = net.connect({port: 6666, host: "10.1.17.9"}, () => {
-            // 'connect' listener
-            process.send({
-                cmd: TCPconnected,
-                msg: 'connected to server!'
-            });
-
-            client.write(`${chunk}\r\n`);
-        });
-
-        /**
-         * 说明： 0 成功 1失败
-         *
-         * */
-        client.on('data', (data) => {
-            process.send({
-                cmd: Query,
-                msg: data.toString()
-            });
-            res.end(JSON.stringify({
-                "status": data.toString()
-            }));
-        });
-
-        client.on('end', () => {
-            process.send({
-                cmd: TCPdisconnect,
-                msg: `disconnected from server.`
-            });
         });
     });
 
