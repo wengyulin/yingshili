@@ -2,11 +2,15 @@ const path = require("path");
 const fs = require("fs");
 const qs = require('querystring');
 const url = require('url');
-
+const crypto = require('crypto');
+const WebSocket = require('ws');
+const net = require('net');
 
 //信号量
 const {
     Query,
+    TCPconnected,
+    TCPdisconnect
     } = require(path.resolve(__dirname, "..", "utils/SIGN.js"));
 
 
@@ -75,6 +79,7 @@ function Router(app) {
         });
     });
     app.GET("/", (req, res)=> {
+
         let statInfo = fs.statSync(PATHS.build);
         let regexpJS = /\.(js|jsx)$/;
         let regexpCSS = /\.(css)$/;
@@ -120,13 +125,111 @@ function Router(app) {
             });
 
             res.addTrailers({'Content-MD5': '7895bf4b8828b55ceaf47747b4bca667'});
-
             readStrem = fs.createReadStream(PATHS.build);
             readStrem.pipe(res);
         } else {
             res.writeHead(404, {'Content-Type': 'text/plain'});
             res.end("not found");
         }
+    });
+
+
+    /**
+     *
+     * 说明: 华为listos http接口部署
+     *
+     * */
+    app.POST("/发送TCP的代码", (req, res)=> {
+
+        let chunk = "",
+            reback = "";
+
+        req.on("data", data=> {
+            chunk += data;
+        });
+
+        req.on("end", ()=> {
+            try {
+                qs.parse(chunk);
+                reback = {verifi: true};
+                res.writeHead(200, {'Content-Type': 'application/json'});
+            } catch (e) {
+                reback = {verifi: false};
+            }
+        });
+
+
+        const client = net.connect({port: 6666, host: "10.1.17.9"}, () => {
+            // 'connect' listener
+            process.send({
+                cmd: TCPconnected,
+                msg: 'connected to server!'
+            });
+
+            client.write(`${chunk}\r\n`);
+        });
+
+        /**
+         * 说明： 0 成功 1失败
+         *
+         * */
+        client.on('data', (data) => {
+            process.send({
+                cmd: Query,
+                msg: data.toString()
+            });
+            res.end(JSON.stringify({
+                "status": data.toString()
+            }));
+        });
+
+        client.on('end', () => {
+            process.send({
+                cmd: TCPdisconnect,
+                msg: `disconnected from server.`
+            });
+        });
+    });
+
+    /**
+     * 说明：获取设备信息
+     *
+     *
+     * */
+    app.POST("/getDevices", (req, res)=> {
+
+        let chunk = "",
+            reback = "";
+
+        req.on("data", data=> {
+            chunk += data;
+        });
+
+
+        req.on("end", ()=> {
+            try {
+                let postData = qs.parse(chunk),
+                    pool = app.pool;
+
+                pool.getConnection((err, connection)=> {
+                    //查询
+                    connection.query(`select * from devices where userID =${postData.userID} `, function (err, rows, fields) {
+
+                        if (err) throw err;
+
+                        res.end(JSON.stringify(rows));
+                        process.send({
+                            cmd: Query,
+                            msg: `[child] 查询结果为=>${JSON.stringify(rows)}.`
+                        });
+                        connection.release();
+                    });
+                });
+            } catch (e) {
+                reback = {status: 0, err: "数据格式不对"};
+                res.end(JSON.stringify(reback));
+            }
+        });
     });
     return app;
 }

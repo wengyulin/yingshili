@@ -1,25 +1,61 @@
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
+const qs = require('querystring');
 const url = require('url');
 const net = require('net');
 const mysql = require('mysql');
-const Route = require(`./server/route.js`);
+
 //信号量
 const {SHOTDOWN,
     ONLINE,
     OFFLINE,
     ALREADYLINE,
+    Query,
     ErrorMysql,
+    MysqlOnline,
+    EnqueueMysql
     } = require(path.resolve(__dirname, "utils/SIGN.js"));
 
+//路径
+const PATHS = {
+    app: path.resolve(__dirname, "app", "index.jsx"),
+    build: path.resolve(__dirname, "build", "index.html"),
+    public: path.resolve(__dirname, "build")
+};
 
-function app() {
-    return new http.Server();
-}
+
+
+//数据库配置项
+const DBConfig = require(path.resolve(__dirname, "utils/DBconfig.js"));
+
+
+/**
+ * 说明，为了支持并发，节省支援，采用连接池
+ *
+ * */
+const pool = mysql.createPool(DBConfig);
+
+
+pool.on('enqueue', function () {
+    process.send({
+        cmd: EnqueueMysql,
+        msg: `Waiting for available connection slot.`
+    });
+});
+
+pool.on('connection', (connection) => {
+    process.send({
+        cmd: MysqlOnline,
+        msg: `connected as id:  ${connection.threadId}.`
+    });
+
+});
+
+
+
 //最后可能需要存到redis里
-app.route = {};
-
+const route = {};
 
 /**
  * 说明：所有http请求方法
@@ -32,19 +68,133 @@ const methods = http.METHODS;
  *
  *
  * */
+
     //动态添加路由
 methods.forEach((method)=> {
     app[method] = function (path) {
-        if (Object.prototype.toString.call(app.route[method]) === '[object Array]') {
-            app.route[method].push({path, fn: Array.prototype.slice.call(arguments, 1)});
+        if (Object.prototype.toString.call(route[method]) === '[object Array]') {
+            route[method].push({path, fn: Array.prototype.slice.call(arguments, 1)});
         } else {
-            app.route[method] = [{path, fn: Array.prototype.slice.call(arguments, 1)}];
+            route[method] = [{path, fn: Array.prototype.slice.call(arguments, 1)}];
         }
     };
 });
+
+
+function app() {
+    return new http.Server();
+}
+
 const server = app();
 
-app = Route(app);
+/**
+ * 说明：挂在请求方法 与 回调函数
+ *
+ *
+ * */
+app.POST("/dolegift", (req, res)=> {
+    let postData = "";
+    req.on("data", data=> {
+        postData += data;
+    });
+
+    req.on("end", ()=> {
+        let verification = false; //验证
+        postData = qs.parse(postData);
+        let reback = {verifi: verification};
+        (gift = postData.giftSort) ? (reback.verifi = true) : "";
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify(reback));
+
+    });
+
+});
+app.POST("/vipActivities", (req, res)=> {
+    let postData = "";
+    req.on("data", data=> {
+        postData += data;
+    });
+
+    req.on("end", ()=> {
+
+        let verification = false; //验证
+        let reback = {verifi: verification};
+
+
+        postData = qs.parse(postData);
+
+        pool.getConnection((err, connection)=> {
+            //查询
+            connection.query('select * from `users`', function (err, rows, fields) {
+                if (err) throw err;
+
+                if (postData.ID == rows[0][`userID`] && postData.password == rows[0][`password`]) {
+                    reback.verifi = true;
+                }
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.end(JSON.stringify(reback));
+                process.send({
+                    cmd: Query,
+                    msg: `[child] 查询结果为=>${JSON.stringify(rows)}.`
+                });
+            });
+        });
+    });
+});
+app.GET("/", (req, res)=> {
+    let statInfo = fs.statSync(PATHS.build);
+    let regexpJS = /\.(js|jsx)$/;
+    let regexpCSS = /\.(css)$/;
+    let regexpImg = /\.(jpg|png)$/;
+    let IncomingUrl = req.url;
+
+    if (regexpJS.test(IncomingUrl)) {
+        res.setHeader('Content-Type', 'application/x-javascript');
+        res.setHeader('Server', 'huenchao');
+        res.setHeader('X-Power-By', 'nodejs');
+        res.writeHead(200, {});
+        readStrem = fs.createReadStream(PATHS.public + IncomingUrl);
+        readStrem.pipe(res);
+        return;
+    }
+    if (regexpImg.test(IncomingUrl)) {
+        let index = IncomingUrl.lastIndexOf(`.`);
+        let ext = IncomingUrl.substr(index);
+        res.setHeader('Content-Type', `image/${ext}`);
+        res.setHeader('Server', 'huenchao');
+        res.setHeader('X-Power-By', 'nodejs');
+        res.writeHead(200, {});
+        readStrem = fs.createReadStream(PATHS.public + IncomingUrl);
+        readStrem.pipe(res);
+        return;
+    }
+    if (regexpCSS.test(IncomingUrl)) {
+        res.setHeader('Content-Type', 'text/css');
+        res.setHeader('Server', 'huenchao');
+        res.setHeader('X-Power-By', 'nodejs');
+        res.writeHead(200, {});
+        readStrem = fs.createReadStream(PATHS.public + IncomingUrl);
+        readStrem.pipe(res);
+        return;
+    }
+
+    if (statInfo) {
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Server', 'huenchao');
+        res.setHeader('X-Power-By', 'nodejs');
+        res.writeHead(200, {
+            'Trailer': 'Content-MD5'
+        });
+
+        res.addTrailers({'Content-MD5': '7895bf4b8828b55ceaf47747b4bca667'});
+
+        readStrem = fs.createReadStream(PATHS.build);
+        readStrem.pipe(res);
+    } else {
+        res.writeHead(404, {'Content-Type': 'text/plain'});
+        res.end("not found");
+    }
+});
 
 /**
  * 说明：'request'的回调函数
@@ -52,19 +202,18 @@ app = Route(app);
  */
 const handle = (req, res) => {
     let method = req.method;
-    let len = app.route[method] && app.route[method].length > 0 ? app.route[method].length : 0;
+    let len = route[method] && route[method].length > 0 ? route[method].length : 0;
     if (method == "POST") {
         for (let i = 0; i < len; i++) {
-            if (app.route[method][i].path == req.url) {
-                app.route[method][i].fn[0](req, res);
+            if (route[method][i].path == req.url) {
+                route[method][i].fn[0](req, res);
             }
         }
     } else if (method == "GET") {
-        app.route[method][0].fn[0](req, res);
+        route[method][0].fn[0](req, res);
     }
 
 };
-
 
 /**
  * 说明：创建服务器的第二种写法
@@ -242,12 +391,9 @@ server.timeout = 120000;
  * @param {Number} port 端口
  * @param {Function} callback 异步回调函数
  */
-
-
-server.listen(3000, "10.1.17.17", ()=> {
+server.listen(3000, "127.0.0.1", ()=> {
     process.send({
         cmd: ONLINE,
         msg: `[child] =>${process.pid} 上线了....`
     });
-
 });

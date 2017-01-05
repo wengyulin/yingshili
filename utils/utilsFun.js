@@ -37,6 +37,8 @@ function messageHandler(msg) {
             case `mysqlonline`:
             case `EnqueueMysql`:
             case `errormysql`:
+            case `tcpconnected`:
+            case `tcpdisconnected`:
                 say(msg.msg);
                 break;
             default:
