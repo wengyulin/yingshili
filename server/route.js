@@ -13,46 +13,44 @@ const {
 const DBConfig = require(path.resolve(__dirname, "..", "utils/DBconfig.js"));
 
 //加载路由
-const Router = require(path.resolve(__dirname, "Router.js"));
+const _Router = require(path.resolve(__dirname, "Router.js"));
 
 
-    /*
-     * 说明，为了支持并发，节省支援，采用连接池
-     *
-     * */
-    const pool = mysql.createPool(DBConfig);
+/*
+ * 说明，为了支持并发，节省支援，采用连接池
+ *
+ * */
+const pool = mysql.createPool(DBConfig);
 
+/**
+ *
+ *说明:挂着池化DB
+ *
+ * */
 
-    function Route(app) {
-        app.pool = pool;
+const _Route = app=> {
+    app.pool = pool;
 
-        app.pool.on('enqueue', function () {
-            process.send({
-                cmd: EnqueueMysql,
-                msg: `Waiting for available connection slot.`
-            });
+    app.pool.on('enqueue', function () {
+        process.send({
+            cmd: EnqueueMysql,
+            msg: `Waiting for available connection slot.`
         });
+    });
 
-        app.pool.on('connection', (connection) => {
-            process.send({
-                cmd: MysqlOnline,
-                msg: `connected as id:  ${connection.threadId}.`
-            });
+    app.pool.on('connection', (connection) => {
+        process.send({
+            cmd: MysqlOnline,
+            msg: `connected as id:  ${connection.threadId}.`
         });
-
+    });
 
     /**
      * 说明：挂在请求方法 与 回调函数
      *
      *
      * */
-    return Router(app);
-}
+    return _Router(app);
+};
 
-module.exports = Route;
-
-
-
-
-
-
+module.exports = _Route;
