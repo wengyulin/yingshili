@@ -11,9 +11,13 @@ say("Master starting:");
 say("pid         => " + process.pid);
 say("environment => " + process.env.NODE_ENV);
 
-
+/**
+ *
+ * 说明：目前处于开发版本，节点文件取名DEV版本
+ *
+ * */
 cluster.setupMaster({
-    exec: path.resolve(__dirname, 'worker.js'),
+    exec: path.resolve(__dirname, 'workerDev.js'),
     args: ['--use', 'http'],
     silent: true
 });
