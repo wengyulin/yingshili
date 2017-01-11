@@ -1,10 +1,26 @@
+//http协议模块
 const http = require("http");
+//路径解析模块
 const path = require("path");
+//文件系统模块
 const fs = require("fs");
+//url解析模块
 const url = require('url');
 const net = require('net');
 const mysql = require('mysql');
 const Route = require(`./server/route.js`);
+
+
+/**
+ *  加载基本配置
+ *  @param ip
+ *  @param prot
+ *  @param mime
+ *
+ * */
+
+const {config} = require(path.resolve(__dirname,"utils/baseConfig.js"));
+
 //信号量
 const {SHOTDOWN,
     ONLINE,
@@ -196,7 +212,6 @@ server.on('upgrade', (req, socket, head)=> {
     }
     socket.on("data", (chunk)=> {
         socket.write("发送服务器的消息");
-
     });
     socket.on("end", ()=> {
         socket.write("发送服务器的消息");
@@ -244,7 +259,7 @@ server.timeout = 120000;
  */
 
 
-server.listen(3000, "10.1.17.17", ()=> {
+server.listen(config.port, config.ip, ()=> {
     process.send({
         cmd: ONLINE,
         msg: `[child] =>${process.pid} 上线了....`
