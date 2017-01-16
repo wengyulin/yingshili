@@ -1,19 +1,24 @@
 //http协议模块
 const http = require("http");
+
+//https协议模块
+const https = require("https");
+
 //路径解析模块
 const path = require("path");
 //文件系统模块
 const fs = require("fs");
 //url解析模块
 const url = require('url');
+
 const net = require('net');
-const mysql = require('mysql');
+
 const Route = require(`./server/route.js`);
 
 
 /**
  *  加载基本配置
- *  @param ip
+ *  @param ipa
  *  @param prot
  *  @param mime
  *

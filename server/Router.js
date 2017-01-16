@@ -24,7 +24,6 @@ const PATHS = {
 const CONFIG = require(path.resolve(__dirname, "..", "utils/baseConfig.js"));
 
 /**
- *
  * 说明：需要加载URL接口，就写在这里
  *
  * */

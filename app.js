@@ -17,7 +17,7 @@ say("environment => " + process.env.NODE_ENV);
  *
  * */
 cluster.setupMaster({
-    exec: path.resolve(__dirname, 'workerDev.js'),
+    exec: path.resolve(__dirname, 'workerPro.js'),
     args: ['--use', 'http'],
     silent: true
 });
